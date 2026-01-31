@@ -162,31 +162,53 @@ router.post('/register', async (req, res) => {
     // Hash du mot de passe
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Créer l'utilisateur
-    const result = await pool.query(`
-      INSERT INTO users (
-        email, 
-        password_hash, 
-        firstname, 
-        lastname, 
-        company_name, 
-        phone, 
-        role,
-        is_active,
-        email_verified
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, 'client', true, false)
-      RETURNING id, email, firstname, lastname, company_name, phone, role, created_at
-    `, [
-      email.toLowerCase(), 
-      passwordHash, 
-      firstname, 
-      lastname, 
-      company_name || null, 
-      phone || null
-    ]);
+    // Générer un username si la table l'exige (schéma journalism) : partie avant @, sanitisé, unique
+    const baseUsername = (email.split('@')[0] || 'user').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 40);
+    let username = baseUsername;
+    for (let i = 0; i < 100; i++) {
+      const existing = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+      if (existing.rows.length === 0) break;
+      username = `${baseUsername}_${Math.random().toString(36).slice(2, 8)}`;
+    }
 
-    const user = result.rows[0];
+    // Créer l'utilisateur (avec ou sans username selon le schéma)
+    let result;
+    try {
+      result = await pool.query(`
+        INSERT INTO users (
+          email, username, password_hash, firstname, lastname, role, is_active, email_verified
+        )
+        VALUES ($1, $2, $3, $4, $5, 'member', true, false)
+        RETURNING id, email, firstname, lastname, role, created_at
+      `, [email.toLowerCase(), username, passwordHash, firstname, lastname]);
+    } catch (insertErr) {
+      if (insertErr.code === '42703') {
+        result = await pool.query(`
+          INSERT INTO users (
+            email, password_hash, firstname, lastname, role, is_active, email_verified
+          )
+          VALUES ($1, $2, $3, $4, 'member', true, false)
+          RETURNING id, email, firstname, lastname, role, created_at
+        `, [email.toLowerCase(), passwordHash, firstname, lastname]);
+      } else {
+        throw insertErr;
+      }
+    }
+
+    let user = result.rows[0];
+
+    // Si la table a company_name et phone, les remplir (optionnel)
+    if (company_name != null || phone != null) {
+      try {
+        const updateResult = await pool.query(`
+          UPDATE users SET company_name = COALESCE($1, company_name), phone = COALESCE($2, phone) WHERE id = $3
+          RETURNING id, email, firstname, lastname, company_name, phone, role, created_at
+        `, [company_name || null, phone || null, user.id]);
+        if (updateResult.rows[0]) user = updateResult.rows[0];
+      } catch (e) {
+        if (e.code !== '42703') throw e; // 42703 = column does not exist, on ignore
+      }
+    }
 
     // 🔥 ENVOYER EMAIL DE BIENVENUE
     sendWelcomeEmail(user).catch(err => {
@@ -194,12 +216,16 @@ router.post('/register', async (req, res) => {
       // On ne bloque pas l'inscription si l'email échoue
     });
 
-    // Créer préférences email par défaut
-    await pool.query(`
-      INSERT INTO email_preferences (user_id)
-      VALUES ($1)
-      ON CONFLICT (user_id) DO NOTHING
-    `, [user.id]);
+    // Créer préférences email par défaut (si la table existe)
+    try {
+      await pool.query(`
+        INSERT INTO email_preferences (user_id)
+        VALUES ($1)
+        ON CONFLICT (user_id) DO NOTHING
+      `, [user.id]);
+    } catch (e) {
+      if (e.code !== '42P01') throw e;
+    }
 
     // Générer token JWT
     const token = jwt.sign(

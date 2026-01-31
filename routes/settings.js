@@ -27,7 +27,8 @@ router.get('/', async (req, res) => {
     res.json(settingsObj);
   } catch (error) {
     console.error('Erreur get settings:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    // En cas de BDD indisponible ou table absente : retourner un objet vide pour ne pas casser le front
+    res.status(200).json({ site_name: 'Collection Aur\'Art' });
   }
 });
 

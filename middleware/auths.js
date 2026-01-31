@@ -141,10 +141,10 @@ const requireStaff = async (req, res, next) => {
     
     const userRole = result.rows[0].role;
     
-    if (userRole !== 'admin' && userRole !== 'staff') {
+    if (!['admin', 'editor', 'author'].includes(userRole)) {
       return res.status(403).json({ 
         error: 'Accès non autorisé',
-        message: 'Vous devez être membre du personnel pour accéder à cette ressource'
+        message: 'Vous devez être administrateur ou éditeur pour accéder à cette ressource'
       });
     }
     

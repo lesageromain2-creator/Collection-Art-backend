@@ -20,6 +20,9 @@ const query = async (text, params = []) => {
     return result.rows;
   } catch (error) {
     console.error('Database query error:', error);
+    if (error.code === '28P01') {
+      console.error('💡 Fix: Vérifiez le mot de passe dans DATABASE_URL (backend/.env). Supabase → Settings → Database → Database password.');
+    }
     throw error;
   }
 };

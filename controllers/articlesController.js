@@ -376,25 +376,40 @@ exports.updateArticle = async (req, res) => {
 };
 
 /**
- * Supprimer un article (admins seulement)
+ * Supprimer un article (auteur de l'article, éditeur ou admin)
  */
 exports.deleteArticle = async (req, res) => {
   const pool = getPool();
   const { id } = req.params;
   const userId = req.userId;
+  const userRole = req.userRole;
 
   try {
-    const result = await pool.query(
-      'DELETE FROM articles WHERE id = $1 RETURNING *',
+    const check = await pool.query(
+      'SELECT author_id FROM articles WHERE id = $1',
       [id]
     );
 
-    if (result.rows.length === 0) {
+    if (check.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Article non trouvé'
       });
     }
+
+    const authorId = check.rows[0].author_id;
+    const canDelete = authorId === userId || ['editor', 'admin'].includes(userRole);
+    if (!canDelete) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorisé à supprimer cet article'
+      });
+    }
+
+    const result = await pool.query(
+      'DELETE FROM articles WHERE id = $1 RETURNING *',
+      [id]
+    );
 
     // Log l'activité
     await pool.query(
@@ -412,6 +427,53 @@ exports.deleteArticle = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Erreur lors de la suppression de l\'article'
+    });
+  }
+};
+
+/**
+ * Récupérer un article par id (pour édition, utilisateur connecté)
+ */
+exports.getArticleById = async (req, res) => {
+  const pool = getPool();
+  const { id } = req.params;
+  const userId = req.userId;
+  const userRole = req.userRole;
+
+  try {
+    const result = await pool.query(
+      `SELECT a.*, r.name as rubrique_name, r.slug as rubrique_slug
+       FROM articles a
+       LEFT JOIN rubriques r ON a.rubrique_id = r.id
+       WHERE a.id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Article non trouvé'
+      });
+    }
+
+    const article = result.rows[0];
+    // Auteur, éditeur ou admin peuvent accéder
+    if (article.author_id !== userId && !['editor', 'admin'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorisé à modifier cet article'
+      });
+    }
+
+    res.json({
+      success: true,
+      article: article
+    });
+  } catch (err) {
+    console.error('Erreur getArticleById:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la récupération de l\'article'
     });
   }
 };

@@ -12,7 +12,7 @@ const router = express.Router();
 router.get('/me', requireAuth, async (req, res) => {
   try {
     const user = await queryOne(
-      `SELECT id, email, firstname, lastname, phone, role, 
+      `SELECT id, email, username, firstname, lastname, phone, role, 
               email_verified, avatar_url, created_at, last_login
        FROM users WHERE id = $1`,
       [req.userId]
@@ -33,7 +33,7 @@ router.get('/me', requireAuth, async (req, res) => {
 router.get('/profile', requireAuth, async (req, res) => {
   try {
     const user = await queryOne(
-      `SELECT id, email, firstname, lastname, phone, role, 
+      `SELECT id, email, username, firstname, lastname, phone, role, 
               email_verified, avatar_url, created_at, last_login
        FROM users WHERE id = $1`,
       [req.userId]
@@ -104,7 +104,7 @@ router.put('/profile', requireAuth, async (req, res) => {
     );
 
     const updatedUser = await queryOne(
-      'SELECT id, email, firstname, lastname, phone, role FROM users WHERE id = $1',
+      'SELECT id, email, username, firstname, lastname, phone, role, avatar_url FROM users WHERE id = $1',
       [req.userId]
     );
 

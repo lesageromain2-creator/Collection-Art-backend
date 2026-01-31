@@ -35,7 +35,7 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 
 // Patterns pour Vercel et localhost
 const allowedPatterns = [
-  /^https:\/\/lesagedev.*\.vercel\.app$/,
+  /^https:\/\/collection.aurart.*\.vercel\.app$/,
   /^http:\/\/localhost:\d+$/,
   /^http:\/\/127\.0\.0\.1:\d+$/,
   /^http:\/\/192\.168\.\d+\.\d+:\d+$/,  // Réseau local WiFi
@@ -166,6 +166,13 @@ const testConnection = async (retries = 5) => {
     } catch (err) {
       console.error(`❌ Tentative ${i + 1}/${retries} échouée:`, err.message);
       
+      if (err.code === '28P01') {
+        console.error('  ⚠️ MOT DE PASSE BDD INCORRECT (28P01)');
+        console.error('  → Supabase : Settings → Database → Database password');
+        console.error('  → Copiez "Connection string" URI et remplacez le mot de passe dans DATABASE_URL (backend/.env)');
+        console.error('  → Si le mot de passe contient # @ ? etc., encodez-le en URL (ex: @ → %40)');
+      }
+      
       if (err.code === 'ETIMEDOUT') {
         console.error('  ⚠️ Timeout de connexion - Vérifiez:');
         console.error('    1. Que DATABASE_URL est correcte');
@@ -184,11 +191,11 @@ const testConnection = async (retries = 5) => {
   
   console.error('\n❌ ÉCHEC: Impossible de se connecter à Supabase');
   console.error('📋 Checklist de dépannage:');
-  console.error('  1. Vérifiez DATABASE_URL dans backend/.env');
-  console.error('  2. Vérifiez que votre projet Supabase est actif');
-  console.error('  3. Vérifiez les paramètres de connexion dans Supabase Dashboard');
-  console.error('  4. Essayez de changer le port 6543 par 5432 dans DATABASE_URL');
-  console.error('  5. Désactivez temporairement votre antivirus/firewall');
+  console.error('  1. DATABASE_URL dans backend/.env : mot de passe = celui de Supabase (Settings → Database)');
+  console.error('  2. Caractères spéciaux dans le mot de passe : encodez en URL (@ → %40, # → %23, etc.)');
+  console.error('  3. Ou réinitialisez le mot de passe BDD dans Supabase puis mettez à jour .env');
+  console.error('  4. Port : 5432 (pas 6543) dans l’URI si connexion directe');
+  console.error('  5. Projet Supabase actif et IP autorisée si restriction activée');
   
   return false;
 };
@@ -243,12 +250,6 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: true,
   message: 'Trop de tentatives de connexion'
 });
-
-// ============================================
-// WEBHOOK STRIPE - RAW BODY (AVANT BODY PARSER!)
-// ============================================
-// CRITIQUE: Les webhooks Stripe nécessitent le body brut pour vérifier la signature
-app.use('/webhooks/stripe', express.raw({ type: 'application/json' }));
 
 // ============================================
 // BODY PARSER
@@ -537,3 +538,4 @@ process.on('uncaughtException', (error) => {
 });
 
 module.exports = app;
+

@@ -11,12 +11,12 @@ const { uploadMiddleware, validateImage } = require('../middleware/fileUpload');
  * Routes protégées - Upload d'images
  */
 
-// POST /upload/article-image - Upload image d'article (auteurs+)
+// POST /upload/article-image - Upload une ou plusieurs images d'article (membres+)
 router.post(
   '/article-image',
   requireAuth,
-  requireRole(['author', 'editor', 'admin']),
-  uploadMiddleware.array('images', 1),
+  requireRole(['member', 'author', 'editor', 'admin']),
+  uploadMiddleware.array('images', 10),
   validateImage,
   uploadController.uploadArticleImage
 );

@@ -6,7 +6,7 @@ const { FOLDERS } = require('../config/cloudinary');
 const { getPool } = require('../database/db');
 
 /**
- * Upload image d'article
+ * Upload une ou plusieurs images d'article (couverture + images dans le contenu)
  */
 exports.uploadArticleImage = async (req, res) => {
   try {
@@ -17,34 +17,34 @@ exports.uploadArticleImage = async (req, res) => {
       });
     }
 
-    const file = req.files[0];
+    const images = [];
+    for (const file of req.files) {
+      const result = await cloudinaryService.uploadFile(file.buffer, {
+        folder: FOLDERS.ARTICLES,
+        resourceType: 'image',
+        tags: ['article']
+      });
 
-    // Upload vers Cloudinary
-    const result = await cloudinaryService.uploadFile(file.buffer, {
-      folder: FOLDERS.ARTICLES,
-      resourceType: 'image',
-      tags: ['article', 'featured-image']
-    });
+      const urls = {
+        original: result.secure_url,
+        hero: cloudinaryService.getTransformedUrl(result.public_id, 'ARTICLE_HERO'),
+        featured: cloudinaryService.getTransformedUrl(result.public_id, 'ARTICLE_FEATURED'),
+        thumbnail: cloudinaryService.getTransformedUrl(result.public_id, 'ARTICLE_THUMBNAIL')
+      };
 
-    // Générer les URLs avec différentes transformations
-    const urls = {
-      original: result.secure_url,
-      hero: cloudinaryService.getTransformedUrl(result.public_id, 'ARTICLE_HERO'),
-      featured: cloudinaryService.getTransformedUrl(result.public_id, 'ARTICLE_FEATURED'),
-      thumbnail: cloudinaryService.getTransformedUrl(result.public_id, 'ARTICLE_THUMBNAIL')
-    };
-
-    res.json({
-      success: true,
-      message: 'Image uploadée avec succès',
-      image: {
+      images.push({
         public_id: result.public_id,
         urls,
         width: result.width,
         height: result.height,
-        format: result.format,
-        size: result.bytes
-      }
+        format: result.format
+      });
+    }
+
+    res.json({
+      success: true,
+      message: images.length > 1 ? `${images.length} images uploadées` : 'Image uploadée avec succès',
+      images
     });
   } catch (err) {
     console.error('Erreur uploadArticleImage:', err);

@@ -13,21 +13,24 @@ const { requireAuth, requireRole } = require('../middleware/auths');
 // GET /articles - Liste des articles publiés
 router.get('/', articlesController.getArticles);
 
-// GET /articles/:slug - Détail d'un article
+// GET /articles/my/articles - Mes articles (avant :slug pour éviter conflit)
+router.get('/my/articles', requireAuth, articlesController.getMyArticles);
+
+// GET /articles/by-id/:id - Détail par id (pour édition)
+router.get('/by-id/:id', requireAuth, articlesController.getArticleById);
+
+// GET /articles/:slug - Détail d'un article public
 router.get('/:slug', articlesController.getArticleBySlug);
 
 /**
  * Routes protégées - Auteurs, éditeurs, admins
  */
 
-// GET /articles/my/articles - Mes articles
-router.get('/my/articles', requireAuth, articlesController.getMyArticles);
-
 // POST /articles - Créer un article (auteurs+)
 router.post(
   '/',
   requireAuth,
-  requireRole(['author', 'editor', 'admin']),
+  requireRole(['member', 'author', 'editor', 'admin']),
   articlesController.createArticle
 );
 
@@ -35,15 +38,15 @@ router.post(
 router.put(
   '/:id',
   requireAuth,
-  requireRole(['author', 'editor', 'admin']),
+  requireRole(['member', 'author', 'editor', 'admin']),
   articlesController.updateArticle
 );
 
-// DELETE /articles/:id - Supprimer un article (admins seulement)
+// DELETE /articles/:id - Supprimer un article (auteur de l'article ou admin)
 router.delete(
   '/:id',
   requireAuth,
-  requireRole(['admin']),
+  requireRole(['member', 'author', 'editor', 'admin']),
   articlesController.deleteArticle
 );
 
