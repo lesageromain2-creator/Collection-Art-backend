@@ -188,9 +188,9 @@ router.post('/register', async (req, res) => {
     try {
       result = await pool.query(`
         INSERT INTO users (
-          email, username, password_hash, firstname, lastname, role, is_active, email_verified
+          email, username, password_hash, firstname, lastname, role, is_active, email_verified, is_team_member
         )
-        VALUES ($1, $2, $3, $4, $5, 'member', true, false)
+        VALUES ($1, $2, $3, $4, $5, 'member', true, false, false)
         RETURNING id, email, firstname, lastname, role, created_at
       `, [email.toLowerCase(), username, passwordHash, firstname, lastname]);
     } catch (insertErr) {
@@ -381,7 +381,9 @@ router.get('/me', requireAuth, async (req, res) => {
   
   try {
     const result = await pool.query(
-      `SELECT id, firstname, lastname, email, role, phone, avatar_url, 
+      `SELECT id, username, firstname, lastname, email, role, phone, avatar_url, 
+              bio, is_team_member, team_position, team_order,
+              social_twitter, social_linkedin, social_website,
               email_verified, created_at, last_login 
        FROM users 
        WHERE id = $1`,

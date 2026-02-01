@@ -16,6 +16,8 @@ exports.getTeamMembers = async (req, res) => {
         username,
         firstname,
         lastname,
+        email,
+        phone,
         bio,
         avatar_url,
         team_position,
@@ -26,7 +28,7 @@ exports.getTeamMembers = async (req, res) => {
         (SELECT COUNT(*) FROM articles WHERE author_id = users.id AND status = 'published') as articles_count
       FROM users
       WHERE is_team_member = true AND is_active = true
-      ORDER BY team_order ASC, firstname ASC
+      ORDER BY team_order ASC NULLS LAST, firstname ASC
     `;
 
     const result = await pool.query(query);
@@ -124,6 +126,9 @@ exports.updateMyProfile = async (req, res) => {
     bio,
     avatar_url,
     team_position,
+    phone,
+    is_team_member,
+    team_order,
     social_twitter,
     social_linkedin,
     social_website
@@ -157,6 +162,21 @@ exports.updateMyProfile = async (req, res) => {
     if (team_position !== undefined) {
       updates.push(`team_position = $${paramIndex}`);
       params.push(team_position);
+      paramIndex++;
+    }
+    if (phone !== undefined) {
+      updates.push(`phone = $${paramIndex}`);
+      params.push(phone);
+      paramIndex++;
+    }
+    if (is_team_member !== undefined) {
+      updates.push(`is_team_member = $${paramIndex}`);
+      params.push(!!is_team_member);
+      paramIndex++;
+    }
+    if (team_order !== undefined) {
+      updates.push(`team_order = $${paramIndex}`);
+      params.push(team_order === '' || team_order === null ? null : parseInt(team_order, 10));
       paramIndex++;
     }
     if (social_twitter !== undefined) {

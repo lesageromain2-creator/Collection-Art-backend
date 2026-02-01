@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "test": "jest",
     "init-email-tables": "node scripts/initEmailTables.js",
-    "test-email": "node scripts/testEmail.js"
+    "test-email": "node scripts/testEmail.js",
+    "activate-team-members": "node scripts/activate-team-members.js"
   },
   "dependencies": {
     "@types/node": "^25.1.0",
