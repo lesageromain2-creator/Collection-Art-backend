@@ -89,28 +89,40 @@ const getClientIp = (req) => {
          req.ip;
 };
 
+// Vérification blocage après échecs (si table login_attempts existe)
 const isAccountLocked = async (pool, email) => {
-  const maxAttempts = parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 5;
-  const lockoutDuration = parseInt(process.env.LOCKOUT_DURATION_MINUTES) || 15;
-  
-  const result = await pool.query(
-    `SELECT COUNT(*) as attempts 
-     FROM login_attempts 
-     WHERE email = $1 
-     AND success = false 
-     AND attempted_at > NOW() - INTERVAL '${lockoutDuration} minutes'`,
-    [email]
-  );
-  
-  return parseInt(result.rows[0].attempts) >= maxAttempts;
+  try {
+    const maxAttempts = parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 5;
+    const lockoutDuration = parseInt(process.env.LOCKOUT_DURATION_MINUTES) || 15;
+    const result = await pool.query(
+      `SELECT COUNT(*) as attempts 
+       FROM login_attempts 
+       WHERE email = $1 
+       AND success = false 
+       AND attempted_at > NOW() - INTERVAL '${lockoutDuration} minutes'`,
+      [email]
+    );
+    return parseInt(result.rows[0].attempts, 10) >= maxAttempts;
+  } catch (err) {
+    // Table ou colonne absente (42P01, 42703) : ne pas bloquer le login
+    if (err.code === '42P01' || err.code === '42703') return false;
+    throw err;
+  }
 };
 
+// Enregistrement tentative de login (si table login_attempts existe)
 const logLoginAttempt = async (pool, email, ip, success, userAgent) => {
-  await pool.query(
-    `INSERT INTO login_attempts (email, ip_address, success, user_agent) 
-     VALUES ($1, $2, $3, $4)`,
-    [email, ip, success, userAgent]
-  );
+  try {
+    await pool.query(
+      `INSERT INTO login_attempts (email, ip_address, success, user_agent) 
+       VALUES ($1, $2, $3, $4)`,
+      [email, ip, success, userAgent]
+    );
+  } catch (err) {
+    // Table ou colonne absente : ignorer sans faire échouer le login
+    if (err.code === '42P01' || err.code === '42703') return;
+    console.error('logLoginAttempt:', err.message);
+  }
 };
 
 // ============================================

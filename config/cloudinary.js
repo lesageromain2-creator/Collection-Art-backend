@@ -1,5 +1,12 @@
 const cloudinary = require('cloudinary').v2;
 
+// Vérifier que Cloudinary est configuré (évite "Must supply api_key" au moment de l'upload)
+const isCloudinaryConfigured = !!(
+  process.env.CLOUDINARY_CLOUD_NAME &&
+  process.env.CLOUDINARY_API_KEY &&
+  process.env.CLOUDINARY_API_SECRET
+);
+
 // Configuration Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -123,6 +130,7 @@ const ALLOWED_MIME_TYPES = {
 
 module.exports = {
   cloudinary,
+  isCloudinaryConfigured,
   FOLDERS,
   TRANSFORMATIONS,
   SIZE_LIMITS,

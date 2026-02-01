@@ -2,14 +2,22 @@
 // Contrôleur pour l'upload d'images moderne et interactif
 
 const cloudinaryService = require('../services/cloudinaryService');
-const { FOLDERS } = require('../config/cloudinary');
+const { FOLDERS, isCloudinaryConfigured } = require('../config/cloudinary');
 const { getPool } = require('../database/db');
+
+const CLOUDINARY_NOT_CONFIGURED_MSG = 'Cloudinary non configuré. Ajoutez CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY et CLOUDINARY_API_SECRET dans backend/.env (voir backend/.env.example).';
 
 /**
  * Upload une ou plusieurs images d'article (couverture + images dans le contenu)
  */
 exports.uploadArticleImage = async (req, res) => {
   try {
+    if (!isCloudinaryConfigured) {
+      return res.status(503).json({
+        success: false,
+        error: CLOUDINARY_NOT_CONFIGURED_MSG
+      });
+    }
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         success: false,
@@ -48,9 +56,10 @@ exports.uploadArticleImage = async (req, res) => {
     });
   } catch (err) {
     console.error('Erreur uploadArticleImage:', err);
-    res.status(500).json({
+    const isConfigError = err.message && (err.message.includes('api_key') || err.message.includes('Must supply'));
+    res.status(isConfigError ? 503 : 500).json({
       success: false,
-      error: 'Erreur lors de l\'upload de l\'image'
+      error: isConfigError ? CLOUDINARY_NOT_CONFIGURED_MSG : 'Erreur lors de l\'upload de l\'image'
     });
   }
 };
@@ -63,6 +72,12 @@ exports.uploadAvatar = async (req, res) => {
   const userId = req.userId;
 
   try {
+    if (!isCloudinaryConfigured) {
+      return res.status(503).json({
+        success: false,
+        error: CLOUDINARY_NOT_CONFIGURED_MSG
+      });
+    }
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         success: false,
@@ -121,9 +136,10 @@ exports.uploadAvatar = async (req, res) => {
     });
   } catch (err) {
     console.error('Erreur uploadAvatar:', err);
-    res.status(500).json({
+    const isConfigError = err.message && (err.message.includes('api_key') || err.message.includes('Must supply'));
+    res.status(isConfigError ? 503 : 500).json({
       success: false,
-      error: 'Erreur lors de l\'upload de l\'avatar'
+      error: isConfigError ? CLOUDINARY_NOT_CONFIGURED_MSG : 'Erreur lors de l\'upload de l\'avatar'
     });
   }
 };
