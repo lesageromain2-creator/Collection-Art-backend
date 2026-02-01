@@ -66,11 +66,21 @@ exports.getArticles = async (req, res) => {
       paramIndex++;
     }
 
-    // Compter le total
-    const countQuery = query.replace(/SELECT.*FROM/, 'SELECT COUNT(*) FROM')
-      .replace(/LEFT JOIN.*rubrique_color,.*comments_count/, '');
+    // Compter le total (requête dédiée, mêmes paramètres que la requête principale)
+    let countParamIdx = 1;
+    let countQuery = `
+      SELECT COUNT(*) AS total
+      FROM articles a
+      LEFT JOIN users u ON a.author_id = u.id
+      LEFT JOIN rubriques r ON a.rubrique_id = r.id
+      WHERE a.status = 'published'
+    `;
+    if (rubrique) { countQuery += ` AND r.slug = $${countParamIdx}`; countParamIdx++; }
+    if (author) { countQuery += ` AND u.username = $${countParamIdx}`; countParamIdx++; }
+    if (featured === 'true') { countQuery += ' AND a.is_featured = true'; }
+    if (search) { countQuery += ` AND (a.title ILIKE $${countParamIdx} OR a.content ILIKE $${countParamIdx})`; countParamIdx++; }
     const countResult = await pool.query(countQuery, params);
-    const total = parseInt(countResult.rows[0].count);
+    const total = parseInt(countResult.rows[0]?.total ?? 0, 10);
 
     // Ajouter tri et pagination
     query += ` ORDER BY a.published_at DESC, a.created_at DESC`;
