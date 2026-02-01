@@ -228,7 +228,7 @@ router.post('/register', async (req, res) => {
       // On ne bloque pas l'inscription si l'email échoue
     });
 
-    // Créer préférences email par défaut (si la table existe)
+    // Créer préférences email par défaut (si la table existe) — ne jamais bloquer l'inscription
     try {
       await pool.query(`
         INSERT INTO email_preferences (user_id)
@@ -236,19 +236,11 @@ router.post('/register', async (req, res) => {
         ON CONFLICT (user_id) DO NOTHING
       `, [user.id]);
     } catch (e) {
-      if (e.code !== '42P01') throw e;
+      if (e.code !== '42P01') console.error('❌ email_preferences (ignoré):', e.message);
     }
 
-    // Générer token JWT
-    const token = jwt.sign(
-      { 
-        userId: user.id, 
-        email: user.email, 
-        role: user.role 
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // Générer token JWT (utilise JWT_SECRET avec fallback, comme login)
+    const token = generateToken(user);
 
     console.log('✅ Inscription réussie:', user.email);
 
