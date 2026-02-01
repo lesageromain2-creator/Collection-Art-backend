@@ -33,9 +33,11 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
   : ['http://localhost:3000'];
 
-// Patterns pour Vercel et localhost
+// Patterns pour Vercel et localhost (tout sous-domaine *.vercel.app)
 const allowedPatterns = [
-  /^https:\/\/collection.aurart.*\.vercel\.app$/,
+  /^https:\/\/[^/]+\.vercel\.app$/,     // Tous les déploiements Vercel (*.vercel.app)
+  /^https:\/\/collection\.aurart.*\.vercel\.app$/,
+  /^https:\/\/collectionaurart.*\.vercel\.app$/,
   /^http:\/\/localhost:\d+$/,
   /^http:\/\/127\.0\.0\.1:\d+$/,
   /^http:\/\/192\.168\.\d+\.\d+:\d+$/,  // Réseau local WiFi
